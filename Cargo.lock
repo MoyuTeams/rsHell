@@ -601,8 +601,7 @@ checksum = "61803da095bee82a81bb1a452ecc25d3b2f1416d1897eb86430c6159ef717c17"
 [[package]]
 name = "crypto-bigint"
 version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a52aa3fcda4e6302a9f48734f234d35d4721b96f8fe07d073f07ce9df4f0271"
+source = "git+https://github.com/MoyuTeams/crypto-bigint?rev=9a4f70ace040b57f5f5cffc0d4389d2676baee9d#9a4f70ace040b57f5f5cffc0d4389d2676baee9d"
 dependencies = [
  "cpubits",
  "ctutils",
@@ -1957,8 +1956,7 @@ dependencies = [
 [[package]]
 name = "pageant"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f3a5ae18f65a85c67a77d18d42d3606c07948e3c17c1e5f74852b26589e88a5"
+source = "git+https://github.com/MoyuTeams/russh?rev=5594db64985233946667d2622458a334c8ac0891#5594db64985233946667d2622458a334c8ac0891"
 dependencies = [
  "base16ct",
  "byteorder",
@@ -2526,8 +2524,7 @@ dependencies = [
 [[package]]
 name = "russh"
 version = "0.62.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da7c230e0ed9cbeb92fbad6c8848985d6df2a1464c0dc247a021abd666e9005e"
+source = "git+https://github.com/MoyuTeams/russh?rev=5594db64985233946667d2622458a334c8ac0891#5594db64985233946667d2622458a334c8ac0891"
 dependencies = [
  "aes 0.9.2",
  "bitflags",
@@ -2598,8 +2595,7 @@ dependencies = [
 [[package]]
 name = "russh-cryptovec"
 version = "0.62.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3aec6cb630dbe85d72ffd7bcd95f07e1bd69f9f270ee8adfa1afe443a6331438"
+source = "git+https://github.com/MoyuTeams/russh?rev=5594db64985233946667d2622458a334c8ac0891#5594db64985233946667d2622458a334c8ac0891"
 dependencies = [
  "log",
  "nix",
@@ -2610,8 +2606,7 @@ dependencies = [
 [[package]]
 name = "russh-util"
 version = "0.52.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "668424a5dde0bcb45b55ba7de8476b93831b4aa2fa6947e145f3b053e22c60b6"
+source = "git+https://github.com/MoyuTeams/russh?rev=5594db64985233946667d2622458a334c8ac0891#5594db64985233946667d2622458a334c8ac0891"
 dependencies = [
  "chrono",
  "tokio",

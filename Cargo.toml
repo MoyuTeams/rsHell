@@ -9,6 +9,9 @@ members = [
 exclude = ["third_party/portable-pty-psmux"]
 resolver = "3"
 
+[patch.crates-io]
+crypto-bigint = { git = "https://github.com/MoyuTeams/crypto-bigint", rev = "9a4f70ace040b57f5f5cffc0d4389d2676baee9d", version = "=0.7.5" }
+
 [package]
 name = "rshell"
 version = "0.1.0"

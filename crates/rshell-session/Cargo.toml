@@ -17,7 +17,7 @@ rshell-platform = { path = "../rshell-platform" }
 rshell-storage = { path = "../rshell-storage" }
 # Keep russh on its supported ring backend: aws-lc needs NASM on Windows and is not otherwise
 # required by rsHell's managed SSH feature set.
-russh = { version = "=0.62.5", git = "https://github.com/MoyuTeams/russh", rev = "5594db64985233946667d2622458a334c8ac0891", default-features = false, features = ["flate2", "ring", "rsa"] }
+russh = { version = "=0.62.5", git = "https://github.com/MoyuTeams/russh", rev = "392265d2b622fdce3fd57f836db134773c475950", default-features = false, features = ["flate2", "ring", "rsa"] }
 secrecy = "0.10.3"
 thiserror = "2.0"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "sync", "time"] }

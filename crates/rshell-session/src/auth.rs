@@ -58,6 +58,7 @@ pub trait ExternalSigner: Send + Sync {
     /// for RSA keys and `None` for other algorithms. Returns the SSH signature blob:
     /// `string(signature algorithm) || string(signature)`, followed by the flags byte and the
     /// counter for `sk-*` keys.
+    #[must_use = "签名操作需要等待并检查认证结果"]
     async fn sign(
         &self,
         data: &[u8],

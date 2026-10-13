@@ -109,15 +109,20 @@ pub trait SessionTransport: Send {
         None
     }
 
+    #[must_use = "连接操作需要等待并检查建立结果"]
     async fn connect(
         &mut self,
         request: &TransportRequest,
         interactions: InteractionBroker,
     ) -> Result<(), TransportError>;
 
+    #[must_use = "事件读取需要等待并消费结果"]
     async fn next_event(&mut self) -> Result<TransportEvent, TransportError>;
+    #[must_use = "写入操作需要等待并检查交付结果"]
     async fn write(&mut self, bytes: &[u8]) -> Result<(), TransportError>;
+    #[must_use = "尺寸变更需要等待并检查结果"]
     async fn resize(&mut self, size: TerminalSize) -> Result<(), TransportError>;
+    #[must_use = "关闭操作需要等待其资源释放结果"]
     async fn shutdown(&mut self) -> Result<(), TransportError>;
 }
 

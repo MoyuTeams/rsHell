@@ -5,7 +5,7 @@ use crate::TransportError;
 
 use super::{
     local_reader::spawn_reader,
-    local_runtime::{LocalRuntime, checked_pty_size},
+    local_runtime::{LocalRuntime, checked_pty_size, spawn_writer},
 };
 
 /// Starts a command in a PTY and hands its lifecycle to the shared runtime.
@@ -114,6 +114,16 @@ fn spawn_pty_runtime_impl(
             ));
         }
     };
+    let (writer, writer_thread) = match spawn_writer(writer) {
+        Ok(writer) => writer,
+        Err(_) => {
+            return Err(cleanup_failed_launch(
+                &mut *child,
+                #[cfg(windows)]
+                &mut process_job,
+            ));
+        }
+    };
     let (reader_rx, reader_thread) = match spawn_reader(reader) {
         Ok(reader) => reader,
         Err(_) => {
@@ -127,6 +137,7 @@ fn spawn_pty_runtime_impl(
     Ok(LocalRuntime::new(
         pair.master,
         writer,
+        writer_thread,
         child,
         reader_rx,
         reader_thread,

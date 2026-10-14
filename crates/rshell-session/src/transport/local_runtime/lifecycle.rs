@@ -55,11 +55,14 @@ impl LocalRuntime {
         }
 
         self.master.take();
+        // 写线程与读线程共用同一截止时间，shutdown 总时长不超过原有上限。
+        let join_deadline = tokio::time::Instant::now() + READER_JOIN_GRACE;
         let reader_joined = self.join_reader_bounded().await.is_ok();
+        let writer_joined = self.join_writer_until(join_deadline).await.is_ok();
         let child_exited = exited || self.child_has_exited().unwrap_or(false);
         self.child.take();
         self.shut_down = true;
-        if child_exited && reader_joined && process_tree_terminated {
+        if child_exited && reader_joined && writer_joined && process_tree_terminated {
             Ok(())
         } else {
             Err(pty_error())
@@ -97,6 +100,24 @@ impl LocalRuntime {
             return Ok(());
         };
         super::join_reader_thread(&mut self.reader_rx, thread, READER_JOIN_GRACE).await
+    }
+
+    /// 写线程在输入端关闭后退出；阻塞中的写入由子进程退出或 PTY 关闭返回错误而结束。
+    async fn join_writer_until(
+        &mut self,
+        deadline: tokio::time::Instant,
+    ) -> Result<(), TransportError> {
+        let Some(thread) = self.writer_thread.take() else {
+            return Ok(());
+        };
+        while !thread.is_finished() && tokio::time::Instant::now() < deadline {
+            tokio::time::sleep(CHILD_POLL_INTERVAL).await;
+        }
+        if thread.is_finished() {
+            thread.join().map_err(|_| pty_error())
+        } else {
+            Err(pty_error())
+        }
     }
 
     #[cfg(unix)]
@@ -171,6 +192,11 @@ impl Drop for LocalRuntime {
         let _ = self.signal_process_group(libc::SIGKILL);
         self.master.take();
         if let Some(thread) = self.reader_thread.take()
+            && thread.is_finished()
+        {
+            let _ = thread.join();
+        }
+        if let Some(thread) = self.writer_thread.take()
             && thread.is_finished()
         {
             let _ = thread.join();

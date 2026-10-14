@@ -113,7 +113,7 @@ impl SessionTransport for SystemOpenSshTransport {
     }
 
     async fn write(&mut self, bytes: &[u8]) -> Result<(), TransportError> {
-        self.runtime_mut()?.write(bytes)
+        self.runtime_mut()?.write(bytes).await
     }
 
     async fn resize(&mut self, size: TerminalSize) -> Result<(), TransportError> {

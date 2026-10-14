@@ -315,6 +315,75 @@ async fn shutdown_is_bounded_when_a_descendant_inherits_the_pty() {
     );
 }
 
+/// 子进程不读 stdin 时，超过 PTY 缓冲的粘贴不得阻塞运行时线程，且 shutdown 仍有上限。
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn oversized_write_to_a_non_reading_child_does_not_block_the_runtime() {
+    #[cfg(unix)]
+    let (program, args): (&str, &[&str]) = ("sleep", &["30"]);
+    #[cfg(windows)]
+    let (program, args): (&str, &[&str]) = ("ping", &["-n", "30", "127.0.0.1"]);
+    let launch = LocalLaunch::Command {
+        program: PathBuf::from(program),
+        args: args.iter().map(OsString::from).collect(),
+        cwd: None,
+        env: BTreeMap::new(),
+    };
+    let mut transport = LocalPtyTransport::launch(launch);
+    connect(&mut transport, &TransportRequest::new(size(80, 24))).await;
+    let pid = transport.process_id().expect("native process id");
+
+    // 唯一的 worker 若被同步写入占住，这个计数任务就无法推进。
+    let ticks = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let ticker = tokio::spawn({
+        let ticks = std::sync::Arc::clone(&ticks);
+        async move {
+            loop {
+                ticks.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    });
+    let paste = vec![b'x'; 8 * 1024 * 1024];
+    let writer = tokio::spawn(async move {
+        let result = tokio::time::timeout(Duration::from_secs(1), transport.write(&paste)).await;
+        (transport, result)
+    });
+
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let observed = ticks.load(std::sync::atomic::Ordering::Relaxed);
+    assert!(
+        observed >= 5,
+        "runtime worker stalled during the write ({observed} ticks)"
+    );
+    let (mut transport, result) = tokio::time::timeout(Duration::from_secs(5), writer)
+        .await
+        .expect("write must return or be cancelled in bounded time")
+        .expect("write task must not panic");
+    ticker.abort();
+    eprintln!(
+        "oversized write {} after {observed} ticks",
+        if result.is_ok() {
+            "enqueued fully"
+        } else {
+            "was cancelled while waiting for queue space"
+        }
+    );
+    if let Ok(result) = result {
+        result.expect("enqueue to a live child succeeds");
+    }
+
+    let started = std::time::Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), transport.shutdown())
+        .await
+        .expect("shutdown with pending input must stay bounded")
+        .expect("shutdown with pending input converges");
+    eprintln!("shutdown with pending input took {:?}", started.elapsed());
+    assert!(
+        !process_is_active(pid),
+        "child {pid} is active after shutdown"
+    );
+}
+
 #[cfg(windows)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn immediate_descendant_is_contained_before_first_user_marker() {

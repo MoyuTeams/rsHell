@@ -343,7 +343,10 @@ async fn oversized_write_to_a_non_reading_child_does_not_block_the_runtime() {
             }
         }
     });
-    let paste = vec![b'x'; 8 * 1024 * 1024];
+    // 按行组织：规范模式的 tty 只会因完整行积压而阻塞写入，无换行的输入会被直接丢弃。
+    let mut line = vec![b'x'; 1023];
+    line.push(b'\n');
+    let paste = line.repeat(8 * 1024);
     let writer = tokio::spawn(async move {
         let result = tokio::time::timeout(Duration::from_secs(1), transport.write(&paste)).await;
         (transport, result)

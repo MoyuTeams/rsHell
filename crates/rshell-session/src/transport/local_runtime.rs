@@ -198,9 +198,19 @@ struct WriterShared {
 pub(super) struct PtyWriter {
     sender: std_mpsc::Sender<WriteChunk>,
     shared: Arc<WriterShared>,
+    /// 随输入端一起关闭，唤醒正在等待 PTY 可写的写线程（Unix）。
+    #[cfg(unix)]
+    _wake: Option<std::io::PipeWriter>,
 }
 
 impl PtyWriter {
+    /// 绑定唤醒管道的写端：输入端关闭时管道随之关闭，写线程放弃当前写入并退出。
+    #[cfg(unix)]
+    pub(super) fn wake_on_close(mut self, wake: std::io::PipeWriter) -> Self {
+        self._wake = Some(wake);
+        self
+    }
+
     /// 按块申请字节额度后入队。额度申请可被取消：已入队的块保持顺序写出，未入队的部分不写。
     pub(super) async fn write(&self, bytes: &[u8]) -> Result<(), TransportError> {
         if self.shared.failed.load(Ordering::Acquire) {
@@ -222,7 +232,8 @@ impl PtyWriter {
 
 impl Drop for PtyWriter {
     fn drop(&mut self) {
-        // 关闭后写线程丢弃尚未写出的块；正在进行的那次写入由子进程退出或 PTY 关闭来打断。
+        // 关闭后写线程丢弃尚未写出的块。Unix 上随后关闭的唤醒管道打断正在等待的那次写入；
+        // Windows 上由进程树终止或 PTY 关闭来打断。
         self.shared.closed.store(true, Ordering::Release);
     }
 }
@@ -240,7 +251,15 @@ pub(super) fn spawn_writer(
     let thread = thread::Builder::new()
         .name("rshell-local-pty-writer".to_owned())
         .spawn(move || write_loop(writer, &receiver, &thread_shared))?;
-    Ok((PtyWriter { sender, shared }, thread))
+    Ok((
+        PtyWriter {
+            sender,
+            shared,
+            #[cfg(unix)]
+            _wake: None,
+        },
+        thread,
+    ))
 }
 
 fn write_loop(

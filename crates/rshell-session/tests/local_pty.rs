@@ -387,6 +387,42 @@ async fn oversized_write_to_a_non_reading_child_does_not_block_the_runtime() {
     );
 }
 
+/// Unix 上写线程卡在已写满的 PTY 上时，shutdown 仍须回收它并成功返回，且不超过调用方的 2 秒上限。
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn shutdown_reclaims_a_writer_stuck_on_a_full_pty() {
+    let launch = LocalLaunch::Command {
+        program: PathBuf::from("sleep"),
+        args: vec![OsString::from("60")],
+        cwd: None,
+        env: BTreeMap::new(),
+    };
+    let mut transport = LocalPtyTransport::launch(launch);
+    connect(&mut transport, &TransportRequest::new(size(80, 24))).await;
+    let pid = transport.process_id().expect("native process id");
+
+    let mut line = vec![b'x'; 1023];
+    line.push(b'\n');
+    let paste = line.repeat(8 * 1024);
+    // 队列只容纳 4 MiB：写满后 write 等待额度，超时即放弃剩余部分，已入队的仍在写线程里。
+    let _ = tokio::time::timeout(Duration::from_millis(500), transport.write(&paste)).await;
+
+    let started = std::time::Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), transport.shutdown())
+        .await
+        .expect("shutdown must finish within the caller's limit")
+        .expect("shutdown must reclaim a writer blocked on a full PTY");
+    let elapsed = started.elapsed();
+    assert!(
+        elapsed < Duration::from_millis(1_500),
+        "shutdown took {elapsed:?}"
+    );
+    assert!(
+        !process_is_active(pid),
+        "child {pid} is active after shutdown"
+    );
+}
+
 #[cfg(windows)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn immediate_descendant_is_contained_before_first_user_marker() {

@@ -102,7 +102,8 @@ impl LocalRuntime {
         super::join_reader_thread(&mut self.reader_rx, thread, READER_JOIN_GRACE).await
     }
 
-    /// 写线程在输入端关闭后退出；阻塞中的写入由子进程退出或 PTY 关闭返回错误而结束。
+    /// 写线程在输入端关闭后退出：Unix 上等待 PTY 可写的写入随输入端关闭立即结束，
+    /// Windows 上阻塞中的写入由进程树终止或 PTY 关闭返回错误而结束。
     async fn join_writer_until(
         &mut self,
         deadline: tokio::time::Instant,

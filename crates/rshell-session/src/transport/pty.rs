@@ -8,6 +8,9 @@ use super::{
     local_runtime::{LocalRuntime, checked_pty_size, spawn_writer},
 };
 
+#[cfg(unix)]
+mod unix_io;
+
 /// Starts a command in a PTY and hands its lifecycle to the shared runtime.
 pub(super) fn spawn_pty_runtime(
     command: CommandBuilder,
@@ -94,24 +97,29 @@ fn spawn_pty_runtime_impl(
     };
     drop(pair.slave);
 
+    #[cfg(unix)]
+    let master_io = pair
+        .master
+        .as_raw_fd()
+        .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::Unsupported))
+        .and_then(unix_io::split_master);
+    #[cfg(unix)]
+    let (reader, writer, wake) = match master_io {
+        Ok(master_io) => master_io,
+        Err(_) => return Err(cleanup_failed_launch(&mut *child)),
+    };
+    #[cfg(windows)]
     let reader = match pair.master.try_clone_reader() {
         Ok(reader) => reader,
         Err(_) => {
-            return Err(cleanup_failed_launch(
-                &mut *child,
-                #[cfg(windows)]
-                &mut process_job,
-            ));
+            return Err(cleanup_failed_launch(&mut *child, &mut process_job));
         }
     };
+    #[cfg(windows)]
     let writer = match pair.master.take_writer() {
         Ok(writer) => writer,
         Err(_) => {
-            return Err(cleanup_failed_launch(
-                &mut *child,
-                #[cfg(windows)]
-                &mut process_job,
-            ));
+            return Err(cleanup_failed_launch(&mut *child, &mut process_job));
         }
     };
     let (writer, writer_thread) = match spawn_writer(writer) {
@@ -124,6 +132,8 @@ fn spawn_pty_runtime_impl(
             ));
         }
     };
+    #[cfg(unix)]
+    let writer = writer.wake_on_close(wake);
     let (reader_rx, reader_thread) = match spawn_reader(reader) {
         Ok(reader) => reader,
         Err(_) => {

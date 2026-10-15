@@ -126,6 +126,9 @@ pub struct CellAttributes {
     pub underline: bool,
     pub strike: bool,
     pub reverse: bool,
+    /// SGR 2（dim/faint）。缺省为 false，兼容不含该字段的旧序列化数据。
+    #[serde(default)]
+    pub dim: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -281,5 +284,24 @@ mod tests {
             assert_eq!(serde_json::to_string(&input).unwrap(), fixture);
             assert_eq!(old_match(input), expected);
         }
+    }
+
+    #[test]
+    fn cell_attributes_without_dim_field_decode_as_not_dim() {
+        let old =
+            r#"{"bold":true,"italic":false,"underline":false,"strike":false,"reverse":false}"#;
+        let attributes: CellAttributes = serde_json::from_str(old).unwrap();
+        assert!(attributes.bold);
+        assert!(!attributes.dim);
+
+        let dim = CellAttributes {
+            dim: true,
+            ..CellAttributes::default()
+        };
+        let encoded = serde_json::to_string(&dim).unwrap();
+        assert_eq!(
+            serde_json::from_str::<CellAttributes>(&encoded).unwrap(),
+            dim
+        );
     }
 }

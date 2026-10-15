@@ -113,6 +113,7 @@ fn convert_cell(cell: &Cell, width: usize, selected: bool) -> RenderCell {
             underline: cell.flags.intersects(Flags::ALL_UNDERLINES),
             strike: cell.flags.contains(Flags::STRIKEOUT),
             reverse: cell.flags.contains(Flags::INVERSE),
+            dim: cell.flags.contains(Flags::DIM),
         },
         selected,
     }

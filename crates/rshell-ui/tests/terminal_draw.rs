@@ -435,6 +435,7 @@ fn styled_frame() -> Arc<RenderFrame> {
                         underline: true,
                         strike: true,
                         reverse: true,
+                        dim: false,
                     },
                     selected: false,
                 },

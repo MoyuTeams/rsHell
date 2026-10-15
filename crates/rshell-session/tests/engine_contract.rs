@@ -158,6 +158,26 @@ fn bracketed_paste_mode_is_exposed_and_is_not_residue() {
 }
 
 #[test]
+fn sgr_dim_maps_to_dim_attribute_only_on_dim_cells() {
+    let mut engine = DefaultTerminalEngine::new(&profile(100), size(16, 4)).unwrap();
+    engine.input(b"\x1b[2mD\x1b[0mN").unwrap();
+
+    let frame = engine.snapshot(viewport(0, 4), None);
+    let dim = |text: &str| {
+        frame
+            .rows
+            .iter()
+            .flat_map(|row| row.cells.iter())
+            .find(|cell| cell.text == text)
+            .expect("cell present")
+            .attributes
+            .dim
+    };
+    assert!(dim("D"));
+    assert!(!dim("N"));
+}
+
+#[test]
 fn fixture_converts_styles_unicode_wrap_title_cursor_and_mouse_mode() {
     let mut engine = DefaultTerminalEngine::new(&profile(20_000), size(16, 8)).unwrap();
     engine.input(FIXTURE).unwrap();
